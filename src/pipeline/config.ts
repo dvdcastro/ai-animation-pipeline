@@ -109,9 +109,16 @@ function validateConfig(config: Record<string, unknown>): void {
   const spriteSheet = config.spriteSheet as Record<string, unknown> | undefined;
   if (!spriteSheet) throw new Error('Missing required field: spriteSheet');
   if (!spriteSheet.frameWidth) throw new Error('Missing required field: spriteSheet.frameWidth');
+  if (!isNumber(spriteSheet.frameWidth)) throw new Error('Invalid type for spriteSheet.frameWidth. Must be a number.');
   if (!spriteSheet.frameHeight) throw new Error('Missing required field: spriteSheet.frameHeight');
+  if (!isNumber(spriteSheet.frameHeight)) throw new Error('Invalid type for spriteSheet.frameHeight. Must be a number.');
   if (!spriteSheet.format) throw new Error('Missing required field: spriteSheet.format');
+  if (typeof spriteSheet.format !== 'string') throw new Error('Invalid type for spriteSheet.format. Must be a string.');
   if (spriteSheet.format !== 'png' && spriteSheet.format !== 'webp') {
     throw new Error('Invalid value for spriteSheet.format. Must be "png" or "webp".');
+  }
+
+  function isNumber(value: unknown): boolean {
+    return typeof value === 'number' && !isNaN(value);
   }
 }
