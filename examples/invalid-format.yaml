@@ -1,0 +1,10 @@
+name: Test
+outputDir: ./test
+character:
+  description: test
+  style: cartoon
+animations: []
+spriteSheet:
+  frameWidth: 64
+  frameHeight: 64
+  format: jpg

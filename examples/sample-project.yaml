@@ -1,0 +1,26 @@
+name: Sample Animation Project
+outputDir: ./animations
+character:
+  description: A friendly cartoon character
+  style: cartoon
+  referenceImages:
+    - "character_ref1.png"
+    - "character_ref2.png"
+animations:
+  - name: Walk
+    frames: 24
+    fps: 12
+    poses:
+      - "walk_pose1"
+      - "walk_pose2"
+      - "walk_pose3"
+  - name: Jump
+    frames: 8
+    fps: 12
+    poses:
+      - "jump_pose1"
+      - "jump_pose2"
+spriteSheet:
+  frameWidth: 128
+  frameHeight: 128
+  format: webp
