@@ -6,3 +6,4 @@ dist/
 .aider.tags*
 .aider.input*
 output/
+examples/*/output/
