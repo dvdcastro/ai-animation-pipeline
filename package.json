@@ -10,11 +10,12 @@
     "build": "tsc"
   },
   "devDependencies": {
-    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
-    "@types/node": "^22.0.0"
+    "vitest": "^3.0.0"
   },
   "dependencies": {
+    "gif-encoder-2": "^1.0.5",
     "sharp": "^0.34.0",
     "yaml": "^2.7.0"
   }
