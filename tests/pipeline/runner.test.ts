@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -162,5 +162,99 @@ describe('Pipeline Runner', () => {
 
     expect(result.framesProcessed).toBe(12);
     expect(result.metadata.frames).toHaveLength(12);
+  });
+
+  describe('verbose logging', () => {
+    it('should not write to stdout when verbose is false (default)', async () => {
+      await createFrames(2);
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+      try {
+        await runPipeline(makeConfig());
+        expect(writeSpy).not.toHaveBeenCalled();
+      } finally {
+        writeSpy.mockRestore();
+      }
+    });
+
+    it('should write progress logs to stdout when verbose is true', async () => {
+      await createFrames(3);
+      const output: string[] = [];
+      const writeSpy = vi
+        .spyOn(process.stdout, 'write')
+        .mockImplementation((chunk) => { output.push(String(chunk)); return true; });
+
+      try {
+        await runPipeline(makeConfig({ verbose: true }));
+        const combined = output.join('');
+        expect(combined).toContain('[load]');
+        expect(combined).toContain('[normalize]');
+        expect(combined).toContain('[atlas]');
+        expect(combined).toContain('[done]');
+      } finally {
+        writeSpy.mockRestore();
+      }
+    });
+
+    it('should log GIF step when animations are configured and verbose is true', async () => {
+      await createFrames(2);
+      const output: string[] = [];
+      const writeSpy = vi
+        .spyOn(process.stdout, 'write')
+        .mockImplementation((chunk) => { output.push(String(chunk)); return true; });
+
+      try {
+        await runPipeline(makeConfig({ verbose: true }));
+        const combined = output.join('');
+        expect(combined).toContain('[gif]');
+      } finally {
+        writeSpy.mockRestore();
+      }
+    });
+
+    it('should not log GIF step when no animations and verbose is true', async () => {
+      await createFrames(2);
+      const output: string[] = [];
+      const writeSpy = vi
+        .spyOn(process.stdout, 'write')
+        .mockImplementation((chunk) => { output.push(String(chunk)); return true; });
+
+      try {
+        await runPipeline(makeConfig({ verbose: true, animations: [] }));
+        const combined = output.join('');
+        expect(combined).not.toContain('[gif]');
+        expect(combined).toContain('[done]');
+      } finally {
+        writeSpy.mockRestore();
+      }
+    });
+
+    it('should include frame count in load log', async () => {
+      await createFrames(4);
+      const output: string[] = [];
+      const writeSpy = vi
+        .spyOn(process.stdout, 'write')
+        .mockImplementation((chunk) => { output.push(String(chunk)); return true; });
+
+      try {
+        await runPipeline(makeConfig({ verbose: true }));
+        const combined = output.join('');
+        expect(combined).toContain('Loaded 4 frames');
+      } finally {
+        writeSpy.mockRestore();
+      }
+    });
+
+    it('should not write to stdout when verbose is explicitly false', async () => {
+      await createFrames(2);
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+      try {
+        await runPipeline(makeConfig({ verbose: false }));
+        expect(writeSpy).not.toHaveBeenCalled();
+      } finally {
+        writeSpy.mockRestore();
+      }
+    });
   });
 });

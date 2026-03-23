@@ -34,6 +34,12 @@ export interface ProjectConfig {
     poses: string[];
   }>;
 
+  /**
+   * When true, the pipeline runner will print timestamped progress logs to stdout.
+   * Defaults to false.
+   */
+  verbose?: boolean;
+
   /** Sprite sheet configuration. */
   spriteSheet: {
     /** Width of each frame in the sprite sheet. */
