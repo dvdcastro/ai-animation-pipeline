@@ -1,0 +1,9 @@
+# Aider config for Qwen coding agent
+timeout: 1200
+auto-commits: true
+yes-always: true
+no-auto-lint: true
+no-show-model-warnings: true
+no-check-update: true
+no-suggest-shell-commands: true
+subtree-only: true

@@ -2,5 +2,7 @@ node_modules/
 dist/
 .env
 *.log
-.aider*
+.aider.chat*
+.aider.tags*
+.aider.input*
 output/
