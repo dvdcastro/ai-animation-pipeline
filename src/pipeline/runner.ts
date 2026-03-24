@@ -15,8 +15,8 @@ import { log, now, elapsed } from '../utils/logger.js';
 export interface PipelineResult {
   /** Path to the generated sprite sheet image. */
   spriteSheetPath: string;
-  /** Path to the generated GIF animation, if created. */
-  gifPath?: string;
+  /** Paths to generated GIF animations, one per animation in config. */
+  gifPaths: string[];
   /** Path to the saved atlas metadata JSON file. */
   metadataPath: string;
   /** Atlas metadata describing the sprite sheet layout. */
@@ -98,17 +98,42 @@ export async function runPipeline(config: ProjectConfig): Promise<PipelineResult
   });
   if (verbose) log('atlas', `Metadata → ${metadataPath}`);
 
-  // Step 4: Export GIF (if animations are configured)
-  let gifPath: string | undefined;
+  // Step 4: Export one GIF per animation
+  const gifPaths: string[] = [];
   if (config.animations.length > 0) {
-    const anim = config.animations[0];
-    gifPath = join(config.outputDir, `${anim.name.toLowerCase()}.gif`);
-    if (verbose) log('gif', `Exporting GIF at ${anim.fps}fps...`);
-    const gifStart = now();
-    await createGif(normalizedPaths, gifPath, {
-      fps: anim.fps,
-    });
-    if (verbose) log('gif', `Saved → ${gifPath} (${elapsed(gifStart)}s)`);
+    const usedNames = new Map<string, number>();
+
+    for (const anim of config.animations) {
+      // Normalize animation name to a safe filename
+      let baseName = anim.name.replace(/\s+/g, '-').toLowerCase();
+
+      // Handle duplicate normalized names by appending an index suffix
+      const count = usedNames.get(baseName) ?? 0;
+      usedNames.set(baseName, count + 1);
+      const fileName = count === 0 ? `${baseName}.gif` : `${baseName}-${count}.gif`;
+
+      const gifPath = join(config.outputDir, fileName);
+
+      if (verbose) log('gif', `Exporting ${fileName} at ${anim.fps}fps...`);
+      const gifStart = now();
+
+      // Warn if frame count is less than requested; use available frames
+      if (normalizedPaths.length < anim.frames) {
+        if (verbose) {
+          log(
+            'gif',
+            `Warning: animation "${anim.name}" requests ${anim.frames} frames but only ${normalizedPaths.length} available — using all`,
+          );
+        }
+      }
+
+      await createGif(normalizedPaths, gifPath, {
+        fps: anim.fps,
+      });
+
+      if (verbose) log('gif', `${fileName} saved (${elapsed(gifStart)}s)`);
+      gifPaths.push(gifPath);
+    }
   }
 
   if (verbose) {
@@ -124,7 +149,7 @@ export async function runPipeline(config: ProjectConfig): Promise<PipelineResult
 
   return {
     spriteSheetPath,
-    gifPath,
+    gifPaths,
     metadataPath,
     metadata,
     framesProcessed: frames.length,

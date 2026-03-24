@@ -41,8 +41,8 @@ program
       const result = await runPipeline(config);
       console.log(`✓ Processed ${result.framesProcessed} frames`);
       console.log(`✓ Sprite sheet: ${result.spriteSheetPath}`);
-      if (result.gifPath) {
-        console.log(`✓ GIF: ${result.gifPath}`);
+      for (const gifPath of result.gifPaths) {
+        console.log(`✓ GIF: ${gifPath}`);
       }
     } catch (err) {
       console.error(`Error: Pipeline failed: ${(err as Error).message}`);

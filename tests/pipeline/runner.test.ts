@@ -67,8 +67,8 @@ describe('Pipeline Runner', () => {
 
     expect(result.framesProcessed).toBe(4);
     expect(existsSync(result.spriteSheetPath)).toBe(true);
-    expect(result.gifPath).toBeDefined();
-    expect(existsSync(result.gifPath!)).toBe(true);
+    expect(result.gifPaths).toHaveLength(1);
+    expect(existsSync(result.gifPaths[0])).toBe(true);
     expect(result.metadata.frames).toHaveLength(4);
     expect(result.metadata.format).toBe('png');
   });
@@ -110,8 +110,9 @@ describe('Pipeline Runner', () => {
 
     const result = await runPipeline(config);
 
-    expect(result.gifPath).toBe(join(tempDir, 'walk.gif'));
-    const buffer = readFileSync(result.gifPath!);
+    expect(result.gifPaths).toHaveLength(1);
+    expect(result.gifPaths[0]).toBe(join(tempDir, 'walk.gif'));
+    const buffer = readFileSync(result.gifPaths[0]);
     const header = buffer.subarray(0, 6).toString('ascii');
     expect(header).toMatch(/^GIF8[79]a$/);
   });
@@ -136,7 +137,7 @@ describe('Pipeline Runner', () => {
 
     const result = await runPipeline(config);
 
-    expect(result.gifPath).toBeUndefined();
+    expect(result.gifPaths).toHaveLength(0);
     expect(existsSync(result.spriteSheetPath)).toBe(true);
   });
 
@@ -162,6 +163,71 @@ describe('Pipeline Runner', () => {
 
     expect(result.framesProcessed).toBe(12);
     expect(result.metadata.frames).toHaveLength(12);
+  });
+
+  it('should export one GIF per animation when multiple animations are configured', async () => {
+    await createFrames(4);
+    const config = makeConfig({
+      animations: [
+        { name: 'Walk', frames: 4, fps: 12, poses: ['a', 'b', 'c', 'd'] },
+        { name: 'Run', frames: 4, fps: 16, poses: ['e', 'f', 'g', 'h'] },
+        { name: 'Jump', frames: 2, fps: 8, poses: ['i', 'j'] },
+      ],
+    });
+
+    const result = await runPipeline(config);
+
+    expect(result.gifPaths).toHaveLength(3);
+    expect(result.gifPaths[0]).toBe(join(tempDir, 'walk.gif'));
+    expect(result.gifPaths[1]).toBe(join(tempDir, 'run.gif'));
+    expect(result.gifPaths[2]).toBe(join(tempDir, 'jump.gif'));
+    for (const p of result.gifPaths) {
+      expect(existsSync(p)).toBe(true);
+    }
+  });
+
+  it('should normalize animation names with spaces to use hyphens in filenames', async () => {
+    await createFrames(2);
+    const config = makeConfig({
+      animations: [
+        { name: 'Walk Cycle', frames: 2, fps: 12, poses: ['a', 'b'] },
+      ],
+    });
+
+    const result = await runPipeline(config);
+
+    expect(result.gifPaths[0]).toBe(join(tempDir, 'walk-cycle.gif'));
+    expect(existsSync(result.gifPaths[0])).toBe(true);
+  });
+
+  it('should append index suffix when two animations normalize to the same name', async () => {
+    await createFrames(2);
+    const config = makeConfig({
+      animations: [
+        { name: 'Walk', frames: 2, fps: 12, poses: ['a', 'b'] },
+        { name: 'WALK', frames: 2, fps: 8, poses: ['c', 'd'] },
+      ],
+    });
+
+    const result = await runPipeline(config);
+
+    expect(result.gifPaths).toHaveLength(2);
+    expect(result.gifPaths[0]).toBe(join(tempDir, 'walk.gif'));
+    expect(result.gifPaths[1]).toBe(join(tempDir, 'walk-1.gif'));
+  });
+
+  it('should not crash when frame count is less than animation.frames config', async () => {
+    await createFrames(2);
+    const config = makeConfig({
+      animations: [
+        { name: 'Walk', frames: 10, fps: 12, poses: [] },
+      ],
+    });
+
+    const result = await runPipeline(config);
+
+    expect(result.gifPaths).toHaveLength(1);
+    expect(existsSync(result.gifPaths[0])).toBe(true);
   });
 
   describe('verbose logging', () => {
