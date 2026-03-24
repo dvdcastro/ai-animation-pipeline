@@ -4,6 +4,7 @@ import { ProjectConfig } from './config.js';
 import { loadFrames } from '../sprite/frames.js';
 import { normalizeAll } from '../sprite/normalize.js';
 import { packAtlas, AtlasMetadata } from '../sprite/atlas.js';
+import { saveAtlasMetadata } from '../sprite/atlas-metadata.js';
 import { createGif } from '../animation/gif.js';
 import { log, now, elapsed } from '../utils/logger.js';
 
@@ -16,6 +17,8 @@ export interface PipelineResult {
   spriteSheetPath: string;
   /** Path to the generated GIF animation, if created. */
   gifPath?: string;
+  /** Path to the saved atlas metadata JSON file. */
+  metadataPath: string;
   /** Atlas metadata describing the sprite sheet layout. */
   metadata: AtlasMetadata;
   /** Number of frames that were processed. */
@@ -88,6 +91,13 @@ export async function runPipeline(config: ProjectConfig): Promise<PipelineResult
   });
   if (verbose) log('atlas', `Saved → ${spriteSheetPath} (${elapsed(atlasStart)}s)`);
 
+  // Step 3b: Save atlas metadata JSON
+  const metadataPath = join(config.outputDir, 'spritesheet.json');
+  saveAtlasMetadata(metadataPath, metadata, config, spriteSheetPath, {
+    warn: (msg) => { if (verbose) log('atlas', msg); },
+  });
+  if (verbose) log('atlas', `Metadata → ${metadataPath}`);
+
   // Step 4: Export GIF (if animations are configured)
   let gifPath: string | undefined;
   if (config.animations.length > 0) {
@@ -115,6 +125,7 @@ export async function runPipeline(config: ProjectConfig): Promise<PipelineResult
   return {
     spriteSheetPath,
     gifPath,
+    metadataPath,
     metadata,
     framesProcessed: frames.length,
   };
