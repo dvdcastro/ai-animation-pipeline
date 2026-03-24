@@ -32,6 +32,12 @@ export interface ProjectConfig {
     fps: number;
     /** Array of pose names for the animation. */
     poses: string[];
+    /**
+     * Optional subdirectory (relative to outputDir) containing frames specific to this animation.
+     * When set, only frames from this directory are used for the GIF instead of the shared pool.
+     * Example: framesDir: 'frames/idle'
+     */
+    framesDir?: string;
   }>;
 
   /**
@@ -85,6 +91,7 @@ export function createDefaultConfig(): ProjectConfig {
         frames: 12,
         fps: 24,
         poses: ['pose1', 'pose2', 'pose3'],
+        // framesDir: 'frames/idle'  // optional: use per-animation frame subdirectory
       },
     ],
     spriteSheet: {

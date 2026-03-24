@@ -114,20 +114,47 @@ export async function runPipeline(config: ProjectConfig): Promise<PipelineResult
 
       const gifPath = join(config.outputDir, fileName);
 
+      // Resolve the frame pool for this animation
+      let animNormalizedPaths: string[];
+      if (anim.framesDir) {
+        const animFramesDir = join(config.outputDir, anim.framesDir);
+        if (!existsSync(animFramesDir)) {
+          throw new Error(
+            `framesDir for animation "${anim.name}" not found: ${animFramesDir}`,
+          );
+        }
+        const animFrames = loadFrames(animFramesDir);
+        if (animFrames.length === 0) {
+          if (verbose) {
+            log('gif', `Warning: animation "${anim.name}" framesDir is empty — skipping`);
+          }
+          continue;
+        }
+        // Normalize per-animation frames into a dedicated subdirectory
+        const animNormalizedDir = join(config.outputDir, `normalized-${baseName}`);
+        mkdirSync(animNormalizedDir, { recursive: true });
+        animNormalizedPaths = await normalizeAll(animFramesDir, animNormalizedDir, {
+          targetWidth: config.spriteSheet.frameWidth,
+          targetHeight: config.spriteSheet.frameHeight,
+        });
+      } else {
+        animNormalizedPaths = normalizedPaths;
+      }
+
       if (verbose) log('gif', `Exporting ${fileName} at ${anim.fps}fps...`);
       const gifStart = now();
 
       // Warn if frame count is less than requested; use available frames
-      if (normalizedPaths.length < anim.frames) {
+      if (animNormalizedPaths.length < anim.frames) {
         if (verbose) {
           log(
             'gif',
-            `Warning: animation "${anim.name}" requests ${anim.frames} frames but only ${normalizedPaths.length} available — using all`,
+            `Warning: animation "${anim.name}" requests ${anim.frames} frames but only ${animNormalizedPaths.length} available — using all`,
           );
         }
       }
 
-      await createGif(normalizedPaths, gifPath, {
+      await createGif(animNormalizedPaths, gifPath, {
         fps: anim.fps,
       });
 

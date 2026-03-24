@@ -230,6 +230,113 @@ describe('Pipeline Runner', () => {
     expect(existsSync(result.gifPaths[0])).toBe(true);
   });
 
+  describe('per-animation framesDir', () => {
+    it('should use per-animation framesDir instead of shared frames when specified', async () => {
+      // Create shared frames dir (required for the pipeline shared pool)
+      await createFrames(2);
+      // Create per-animation subdirs
+      const walkDir = join(tempDir, 'frames', 'walk');
+      const runDir = join(tempDir, 'frames', 'run');
+      mkdirSync(walkDir, { recursive: true });
+      mkdirSync(runDir, { recursive: true });
+      // Add 3 walk frames and 4 run frames
+      for (let i = 0; i < 3; i++) {
+        await sharp({
+          create: { width: 32, height: 32, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 1 } },
+        }).png().toFile(join(walkDir, `frame_${String(i + 1).padStart(3, '0')}.png`));
+      }
+      for (let i = 0; i < 4; i++) {
+        await sharp({
+          create: { width: 32, height: 32, channels: 4, background: { r: 0, g: 255, b: 0, alpha: 1 } },
+        }).png().toFile(join(runDir, `frame_${String(i + 1).padStart(3, '0')}.png`));
+      }
+
+      const config = makeConfig({
+        animations: [
+          { name: 'Walk', frames: 3, fps: 12, poses: ['a'], framesDir: 'frames/walk' },
+          { name: 'Run', frames: 4, fps: 18, poses: ['b'], framesDir: 'frames/run' },
+        ],
+      });
+
+      const result = await runPipeline(config);
+
+      expect(result.gifPaths).toHaveLength(2);
+      expect(existsSync(result.gifPaths[0])).toBe(true);
+      expect(existsSync(result.gifPaths[1])).toBe(true);
+    });
+
+    it('should throw a descriptive error when framesDir does not exist', async () => {
+      await createFrames(2);
+      const config = makeConfig({
+        animations: [
+          { name: 'Ghost', frames: 2, fps: 8, poses: [], framesDir: 'frames/nonexistent' },
+        ],
+      });
+
+      await expect(runPipeline(config)).rejects.toThrow('framesDir for animation "Ghost" not found');
+    });
+
+    it('should skip animation (not throw) when framesDir exists but is empty', async () => {
+      await createFrames(2);
+      const emptyDir = join(tempDir, 'frames', 'empty');
+      mkdirSync(emptyDir, { recursive: true });
+
+      const config = makeConfig({
+        animations: [
+          { name: 'Empty', frames: 2, fps: 8, poses: [], framesDir: 'frames/empty' },
+          { name: 'Walk', frames: 2, fps: 12, poses: [] }, // no framesDir, uses shared pool
+        ],
+      });
+
+      const result = await runPipeline(config);
+
+      // Empty animation skipped, only Walk GIF produced
+      expect(result.gifPaths).toHaveLength(1);
+      expect(result.gifPaths[0]).toBe(join(tempDir, 'walk.gif'));
+    });
+
+    it('should normalize per-animation frames to spriteSheet dimensions', async () => {
+      await createFrames(1);
+      const customDir = join(tempDir, 'frames', 'custom');
+      mkdirSync(customDir, { recursive: true });
+      // Create a non-32x32 frame
+      await sharp({
+        create: { width: 100, height: 80, channels: 4, background: { r: 100, g: 100, b: 100, alpha: 1 } },
+      }).png().toFile(join(customDir, 'frame_001.png'));
+
+      const config = makeConfig({
+        spriteSheet: { frameWidth: 32, frameHeight: 32, format: 'png' },
+        animations: [
+          { name: 'Custom', frames: 1, fps: 8, poses: [], framesDir: 'frames/custom' },
+        ],
+      });
+
+      const result = await runPipeline(config);
+
+      expect(result.gifPaths).toHaveLength(1);
+      // Confirm normalized dir was created with correct dimensions
+      const normalizedDir = join(tempDir, 'normalized-custom');
+      expect(existsSync(normalizedDir)).toBe(true);
+      const meta = await sharp(join(normalizedDir, 'frame_001.png')).metadata();
+      expect(meta.width).toBe(32);
+      expect(meta.height).toBe(32);
+    });
+
+    it('should fall back to shared pool when framesDir is not set', async () => {
+      await createFrames(3);
+      const config = makeConfig({
+        animations: [
+          { name: 'Walk', frames: 3, fps: 12, poses: [] }, // no framesDir
+        ],
+      });
+
+      const result = await runPipeline(config);
+
+      expect(result.gifPaths).toHaveLength(1);
+      expect(result.framesProcessed).toBe(3);
+    });
+  });
+
   describe('verbose logging', () => {
     it('should not write to stdout when verbose is false (default)', async () => {
       await createFrames(2);
